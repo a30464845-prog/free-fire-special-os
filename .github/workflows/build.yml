@@ -36,6 +36,15 @@ jobs:
           echo "=== Extracted files ==="
           ls -la /tmp/nr/iso/
 
+      - name: Debug - Find files
+        run: |
+          echo "=== All files ==="
+          find /tmp/nr/iso -type f | head -50
+          echo "=== Config files ==="
+          find /tmp/nr/iso -name "*.cfg"
+          echo "=== Boot related ==="
+          find /tmp/nr/iso -name "isolinux*" -o -name "grub*" -o -name "boot*"   
+
       - name: Fix GMA 4500MHD + Desktop Crash
         run: |
           if [ -f /tmp/nr/iso/isolinux/isolinux.cfg ]; then
