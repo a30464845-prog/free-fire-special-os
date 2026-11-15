@@ -76,32 +76,41 @@ jobs:
 
       - name: Extract and modify system.img
         run: |
-          xorriso -osirrox on -indev /tmp/drockos.iso -extract /system.img /tmp/system.img
-          ls -lh /tmp/system.img
-          sudo losetup -f /tmp/system.img
-          LOOP=$(losetup -j /tmp/system.img | awk -F: '{print $1}')
-          sudo mount -o loop "$LOOP" /mnt
-          echo "=== System root ==="
-          ls /mnt/
-          BUILD_PROP=$(find /mnt -name "build.prop" | head -1)
-          if [ -n "$BUILD_PROP" ]; then
-            echo "ro.hwui.renderer=skia" >> "$BUILD_PROP"
-            echo "ro.kernel.android.checkjni=0" >> "$BUILD_PROP"
-            echo "build.prop updated: $BUILD_PROP"
-          else
-            echo "WARNING: build.prop not found"
-          fi
-          APP_DIR=$(find /mnt -type d -name "app" | head -1)
-          if [ -z "$APP_DIR" ]; then
-            APP_DIR="/mnt/system/app"
-          fi
-          mkdir -p "$APP_DIR"
-          cp /tmp/FreeFire.apk "$APP_DIR/"
-          chmod 644 "$APP_DIR/FreeFire.apk"
-          echo "Free Fire installed in: $APP_DIR"
-          sudo umount /mnt
-          sudo losetup -d "$LOOP"
-          echo "system.img done"
+         xorriso -osirrox on -indev /tmp/drockos.iso -extract /system.img /tmp/system.img
+         ls -lh /tmp/system.img
+         sudo losetup -f /tmp/system.img
+         LOOP=$(losetup -j /tmp/system.img | awk -F: '{print $1}')
+         sudo mount -o loop,rw "$LOOP" /mnt
+         echo "=== System root ==="
+         ls /mnt/
+
+         # build.prop fix
+         BUILD_PROP="/mnt/build.prop"
+         if [ ! -f "$BUILD_PROP" ]; then
+         BUILD_PROP=$(find /mnt -name "build.prop" | head -1)
+         fi
+         if [ -n "$BUILD_PROP" ]; then
+         sudo chmod 644 "$BUILD_PROP"
+         echo "ro.hwui.renderer=skia" | sudo tee -a "$BUILD_PROP"
+         echo "ro.kernel.android.checkjni=0" | sudo tee -a "$BUILD_PROP"
+         echo "build.prop updated: $BUILD_PROP"
+         else
+         echo "WARNING: build.prop not found"
+         fi
+
+         # Free Fire install
+         APP_DIR="/mnt/app"
+         if [ ! -d "$APP_DIR" ]; then
+         APP_DIR="/mnt/priv-app"
+         fi
+         mkdir -p "$APP_DIR"
+         sudo cp /tmp/FreeFire.apk "$APP_DIR/"
+         sudo chmod 644 "$APP_DIR/FreeFire.apk"
+         echo "Free Fire installed in: $APP_DIR"
+
+         sudo umount /mnt
+         sudo losetup -d "$LOOP"
+         echo "system.img done"   
 
       - name: Build final ISO
         run: |
