@@ -1,177 +1,103 @@
-name: Build Free Fire Special OS
-
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
+      - name: Extract GRUB config from ramdisk
         run: |
-          sudo apt update
-          sudo apt install -y genisoimage squashfs-tools libarchive-tools dosfstools p7zip-full   
-      - name: Download Drock OS 3X 32-bit (MJ Edition)
-        run: |
-          wget --no-check-certificate \
-            -O /tmp/drockos.7z \
-            "https://download1327.mediafire.com/gvn0nfhogrtg0r30lda3isOM2X8dTmFq7EJnefp2SqY1DyreD_WTud-dKYHHl3dnZVnMeLAIvgNGMyiG1923VHVEdZXh9-O8lAJxl_4PY_L32GSTu3Aui-WDKfvxUB69JspLRvN9Ir4AN0W62c2IUsVPCTWy5ydkRVjaPH8yAIXvCA/qx2k5mpbvm39681/DROCKOS_3X_32BIT_MICHAEL_JACKSON_VERSION_X86-Without-Gearlock.7z"
-          ls -lh /tmp/drockos.7z
+          mkdir -p /tmp/nr/ramdisk
+          cd /tmp/nr/ramdisk
+          zcat /tmp/nr/iso_extracted/ramdisk.img | cpio -idm 2>/dev/null || \
+          cpio -idm < /tmp/nr/iso_extracted/ramdisk.img 2>/dev/null
+          echo "=== Ramdisk contents ==="
+          find /tmp/nr/ramdisk -type f | head -30
 
-      - name: Download Free Fire APK
-        run: |
-          wget --no-check-certificate \
-            -O /tmp/FreeFire.apk \
-            "https://apk.freefire24.com/apk"
-          ls -lh /tmp/FreeFire.apk
-
-      - name: Extract 7z
-        run: |
-          mkdir -p /tmp/nr/iso
-          7z x /tmp/drockos.7z -o/tmp/nr/iso -y
-          echo "=== Extracted files ==="
-          ls -la /tmp/nr/iso/
-      - name: Find and extract ISO
-        run: |
-          ISO_FILE=$(find /tmp/nr/iso -name "*.iso" | head -1)
-          if [ -z "$ISO_FILE" ]; then
-            echo "ERROR: No ISO found!"
-            exit 1
-          fi
-          echo "Found: $ISO_FILE"
-          mkdir -p /tmp/nr/iso_extracted
-          bsdtar -xf "$ISO_FILE" -C /tmp/nr/iso_extracted
-          echo "=== ISO contents ==="
-          ls -la /tmp/nr/iso_extracted/   
-
-      - name: Debug - What is in iso folder
-        run: |
-          echo "=== Files in /tmp/nr/iso ==="
-          find /tmp/nr/iso -type f 2>/dev/null | head -30
-          echo "=== All files recursively ==="
-          find /tmp/nr/iso -name "*.cfg" 2>/dev/null
-          find /tmp/nr/iso -name "isolinux*" 2>/dev/null
-          echo "=== Directory structure ==="
-          ls -la /tmp/nr/iso/   
-
-       
       - name: Fix GMA 4500MHD + Desktop Crash
         run: |
-          CFG=$(find /tmp/nr/iso_extracted -name "isolinux.cfg" -o -name "grub.cfg" -o -name "menu.lst" 2>/dev/null | head -1)
+          CFG=$(find /tmp/nr/ramdisk -name "grub.cfg" -o -name "menu.lst" -o -name "*.cfg" 2>/dev/null | head -1)
           if [ -z "$CFG" ]; then
-           echo "ERROR: No boot config found!"
-           find /tmp/nr/iso_extracted -type f | head -50
-           exit 1
+          echo "No .cfg found, checking all files:"
+          find /tmp/nr/ramdisk -type f
+          exit 1
           fi
           echo "Found: $CFG"
+          echo "=== Original ==="
           cat "$CFG"
+
+          # Kernel params add karo (GRUB format mein "linux" line hoti hai)
           sed -i 's/quiet/nomodeset xforcevesa quiet/g' "$CFG"
           sed -i 's/MENU LABEL.*/MENU LABEL Free Fire Special OS - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
           sed -i 's/MENU TITLE.*/MENU TITLE Free Fire Special OS v1.0 - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
+
           echo "=== Modified ==="
-          cat "$CFG"   
-
-          sed -i 's/quiet/nomodeset xforcevesa quiet/g' "$CFG"
-          sed -i 's/MENU LABEL.*/MENU LABEL Free Fire Special OS - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
-          sed -i 's/MENU TITLE.*/MENU TITLE Free Fire Special OS v1.0 - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
-
-          echo "=== Modified config ==="
           cat "$CFG"
 
-      - name: Replace boot logo
-        run: |
-          if [ -f assets/infinix-logo.bmp ]; then
-            cp assets/infinix-logo.bmp /tmp/nr/iso/isolinux/ 2>/dev/null || \
-            cp assets/infinix-logo.bmp /tmp/nr/iso/boot/grub/ 2>/dev/null || \
-            echo "WARNING: Logo not placed"
-          else
-            echo "WARNING: assets/infinix-logo.bmp not found"
-          fi
+          - name: Repack ramdisk.img
+           run: |
+           cd /tmp/nr/ramdisk
+           find . | cpio -H newc -o | gzip > /tmp/nr/iso_extracted/ramdisk.img
+           echo "ramdisk.img repacked"
 
-      - name: Extract system.sfs
-        run: |
-          cd /tmp/nr/iso
-          if [ -f system.sfs ]; then
-            unsquashfs -d /tmp/nr/squashfs-root system.sfs
-          elif [ -f system.img ]; then
-            sudo losetup -f system.img
-            sudo mount -o loop /dev/loop0 /mnt
-            mkdir -p /tmp/nr/squashfs-root
-            cp -a /mnt/* /tmp/nr/squashfs-root/
-            sudo umount /mnt
-            sudo losetup -d /dev/loop0
-          else
-            echo "ERROR: system.sfs/system.img not found!"
-            ls -la /tmp/nr/iso/
-            exit 1
-          fi
+           - name: Extract system.img
+             run: |
+             sudo losetup -f /tmp/nr/iso_extracted/system.img
+             LOOP=$(losetup -j /tmp/nr/iso_extracted/system.img | awk -F: '{print $1}')
+             sudo mount -o loop "$LOOP" /mnt
+             mkdir -p /tmp/nr/system-root
+             cp -a /mnt/* /tmp/nr/system-root/
+             sudo umount /mnt
+             sudo losetup -d "$LOOP"
+             echo "=== System contents ==="
+             ls -la /tmp/nr/system-root/
 
-      - name: Fix desktop crash (build.prop)
-        run: |
-          BUILD_PROP="/tmp/nr/squashfs-root/system/build.prop"
-          if [ -f "$BUILD_PROP" ]; then
-            echo "ro.hwui.renderer=skia" >> "$BUILD_PROP"
-            echo "ro.kernel.android.checkjni=0" >> "$BUILD_PROP"
-            echo "build.prop updated"
+             - name: Fix desktop crash (build.prop)
+               run: |
+               BUILD_PROP="/tmp/nr/system-root/build.prop"
+               if [ ! -f "$BUILD_PROP" ]; then
+               BUILD_PROP=$(find /tmp/nr/system-root -name "build.prop" | head -1)
+             fi
+             if [ -n "$BUILD_PROP" ] && [ -f "$BUILD_PROP" ]; then
+             echo "ro.hwui.renderer=skia" >> "$BUILD_PROP"
+             echo "ro.kernel.android.checkjni=0" >> "$BUILD_PROP"
+             echo "build.prop updated: $BUILD_PROP"
           else
-            echo "Searching..."
-            find /tmp/nr/squashfs-root -name "build.prop"
-          fi
+             echo "ERROR: build.prop not found!"
+             find /tmp/nr/system-root -name "build.prop"
+           fi
 
-      - name: Install Free Fire APK
-        run: |
-          mkdir -p /tmp/nr/squashfs-root/system/app/
-          cp /tmp/FreeFire.apk /tmp/nr/squashfs-root/system/app/
-          chmod 644 /tmp/nr/squashfs-root/system/app/FreeFire.apk
-          echo "Free Fire installed"
+            - name: Install Free Fire APK
+              run: |
+              APP_DIR="/tmp/nr/system-root/app"
+              if [ ! -d "$APP_DIR" ]; then
+              APP_DIR=$(find /tmp/nr/system-root -type d -name "app" | head -1)
+            fi
+            mkdir -p "$APP_DIR"
+            cp /tmp/FreeFire.apk "$APP_DIR/"
+            chmod 644 "$APP_DIR/FreeFire.apk"
+            echo "Free Fire installed in: $APP_DIR"
 
-      - name: Repack system.sfs
-        run: |
-          cd /tmp/nr
-          if [ -f /tmp/nr/iso/system.sfs ]; then
-            mksquashfs squashfs-root system.sfs -comp xz
-            cp system.sfs /tmp/nr/iso/system.sfs
-          else
-            dd if=/dev/zero of=system.img bs=1M size=2048
-            sudo mkfs.ext4 system.img
-            sudo losetup -f system.img
-            sudo mount -o loop /dev/loop0 /mnt
-            cp -a squashfs-root/* /mnt/
-            sudo umount /mnt
-            sudo losetup -d /dev/loop0
-            cp system.img /tmp/nr/iso/system.img
-          fi
+            - name: Repack system.img
+              run: |
+              # Original size preserve karo
+              ORIG_SIZE=$(stat -c%s /tmp/nr/iso_extracted/system.img)
+              sudo mkfs.ext4 /tmp/nr/iso_extracted/system.img
+              sudo losetup -f /tmp/nr/iso_extracted/system.img
+              LOOP=$(losetup -j /tmp/nr/iso_extracted/system.img | awk -F: '{print $1}')
+              sudo mount -o loop "$LOOP" /mnt
+              cp -a /tmp/nr/system-root/* /mnt/
+              sudo umount /mnt
+              sudo losetup -d "$LOOP"
+              echo "system.img repacked"
 
-      - name: Build final ISO
-        run: |
-          cd /tmp/nr/iso
-          if [ -f isolinux/isolinux.bin ]; then
-            genisoimage -o "/tmp/FreeFire-Special-OS-v1.0.iso" \
-              -b isolinux/isolinux.bin \
-              -c isolinux/boot.cat \
-              -no-emul-boot \
-              -boot-load-size 4 \
-              -boot-info-table \
-              -V "FreeFire Special OS" \
-              -J -R -O "FreeFire Special OS" \
-              .
-          else
-            genisoimage -o "/tmp/FreeFire-Special-OS-v1.0.iso" \
-              -b boot/grub/i386-pc/boot.hdd \
+            - name: Build final ISO
+              run: |
+              cd /tmp/nr/iso_extracted
+              genisoimage -o "/tmp/FreeFire-Special-OS-v1.0.iso" \
+              -b ramdisk.img \
               -no-emul-boot \
               -boot-load-size 8 \
               -V "FreeFire Special OS" \
               -J -R -O "FreeFire Special OS" \
-              .
-          fi
-          ls -lh /tmp/FreeFire-Special-OS-v1.0.iso
+           .
+              ls -lh /tmp/FreeFire-Special-OS-v1.0.iso
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: FreeFire-Special-OS-v1.0
-          path: /tmp/FreeFire-Special-OS-v1.0.iso   
+           - name: Upload artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: FreeFire-Special-OS-v1.0
+    path: /tmp/FreeFire-Special-OS-v1.0.iso   
