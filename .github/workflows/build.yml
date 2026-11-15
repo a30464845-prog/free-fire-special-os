@@ -26,7 +26,7 @@ jobs:
         run: |
           wget --no-check-certificate \
             -O /tmp/FreeFire.apk \
-            "https://dw.uptodown.net/dwn/xtoMUM0ogiaxrAACNri5u-E6qB9D8zvHvApV5LtbHZHf9LMr-DfrLqSwBC6Ls8TclLVUXuMC4VHvChIoCmiXdlcZ4zLDphI1nA4oHzPNR5GXpeA21iLYt8gRc-GZ6n0H/zmKFOZYoWJ5VeR0oLtrmJb7NCCtSc2qVIYhAhu3I4UqtEZSr1xFLa14R6zQl0gtTVm65Ev4dOHTPM8IFTw0bs8Xxzv-hF5PQBVKn0qbgaNJKMGhF4kZZOz0ZRZNErMwt/iQgIzlbUohnA7SLIvcuzmRcmz4lpJHUHXqhz4nB-C5j8wCd9_pXwJ9VpRv-nQdycdEhxPAXIqL7L2plm6877BTthzWq7NHzGqOCO_6jW2hlq24htEMOWCGIC3A6rAc59/c0QuTPtAaqM8MjTTZS3VJjWmMLe3m2u_H3A1s_MSHNg=/free-fire-1-132-1.apk"
+            "https://apk.freefire24.com/apk"
           ls -lh /tmp/FreeFire.apk
 
       - name: Extract 7z
