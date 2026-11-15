@@ -15,20 +15,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y p7zip-full xorriso cpio libarchive-tools dosfstools
+          sudo apt install -y p7zip-full xorriso cpio
 
       - name: Download Drock OS 7z
         run: |
-          wget --no-check-certificate \
-            -O /tmp/drockos.7z \
-            "https://download1327.mediafire.com/uwakt9fs1jzgkDJ1n3GMuLHYuMZ8klsNaiQJeQya42vuNsBu1-dIG8phRL3nvHpACFTAhA2CKcaC5H_TUZwKoyB6nqDM8oYeoq_5p1Y1uzHXsT0AXJINaU_74Ls3OKKSmq7897mJyrN58oE9NHdoLXF9KT67qgqBWxBRAu5FF3YiOw/qx2k5mpbvm39681/DROCKOS_3X_32BIT_MICHAEL_JACKSON_VERSION_X86-Without-Gearlock.7z"
+          wget -O /tmp/drockos.7z "https://github.com/TUMHARA_USERNAME/free-fire-special-os/releases/download/v1.0/DROCKOS_3X_32BIT_MICHAEL_JACKSON_VERSION_X86-Without-Gearlock.7z"
           ls -lh /tmp/drockos.7z
 
       - name: Download Free Fire APK
         run: |
-          wget --no-check-certificate \
-            -O /tmp/FreeFire.apk \
-            "https://apk.freefire24.com/apk"
+          wget -O /tmp/FreeFire.apk "https://github.com/TUMHARA_USERNAME/free-fire-special-os/releases/download/v1.0/FreeFire.apk"
           ls -lh /tmp/FreeFire.apk
 
       - name: Extract 7z and find ISO
@@ -45,7 +41,7 @@ jobs:
           echo "ISO found"
           ls -lh /tmp/drockos.iso
 
-      - name: Extract ramdisk.img from ISO
+      - name: Extract ramdisk.img
         run: |
           xorriso -osirrox on -indev /tmp/drockos.iso -extract /ramdisk.img /tmp/ramdisk.img
           ls -lh /tmp/ramdisk.img
@@ -59,7 +55,7 @@ jobs:
           find /tmp/nr/ramdisk -type f
           CFG=$(find /tmp/nr/ramdisk -name "*.cfg" -o -name "menu.lst" | head -1)
           if [ -n "$CFG" ]; then
-            echo "=== Original: $CFG ==="
+            echo "=== Original ==="
             cat "$CFG"
             sed -i 's/quiet/nomodeset xforcevesa quiet/g' "$CFG"
             sed -i 's/MENU LABEL.*/MENU LABEL Free Fire Special OS - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
@@ -67,7 +63,7 @@ jobs:
             echo "=== Modified ==="
             cat "$CFG"
           else
-            echo "WARNING: No config found in ramdisk"
+            echo "WARNING: No config in ramdisk"
           fi
 
       - name: Repack ramdisk.img
@@ -76,7 +72,7 @@ jobs:
           find . | cpio -H newc -o 2>/dev/null | gzip > /tmp/new_ramdisk.img
           ls -lh /tmp/new_ramdisk.img
 
-      - name: Extract and modify system.img
+      - name: Modify system.img
         run: |
           xorriso -osirrox on -indev /tmp/drockos.iso -extract /system.img /tmp/system.img
           ls -lh /tmp/system.img
@@ -85,7 +81,6 @@ jobs:
           sudo mount -o loop,rw "$LOOP" /mnt
           echo "=== System root ==="
           ls /mnt/
-
           BUILD_PROP="/mnt/build.prop"
           if [ ! -f "$BUILD_PROP" ]; then
             BUILD_PROP=$(find /mnt -name "build.prop" | head -1)
@@ -94,11 +89,8 @@ jobs:
             sudo chmod 644 "$BUILD_PROP"
             echo "ro.hwui.renderer=skia" | sudo tee -a "$BUILD_PROP"
             echo "ro.kernel.android.checkjni=0" | sudo tee -a "$BUILD_PROP"
-            echo "build.prop updated: $BUILD_PROP"
-          else
-            echo "WARNING: build.prop not found"
+            echo "build.prop updated"
           fi
-
           APP_DIR="/mnt/app"
           if [ ! -d "$APP_DIR" ]; then
             APP_DIR="/mnt/priv-app"
@@ -106,11 +98,9 @@ jobs:
           mkdir -p "$APP_DIR"
           sudo cp /tmp/FreeFire.apk "$APP_DIR/"
           sudo chmod 644 "$APP_DIR/FreeFire.apk"
-          echo "Free Fire installed in: $APP_DIR"
-
+          echo "Free Fire installed"
           sudo umount /mnt
           sudo losetup -d "$LOOP"
-          echo "system.img done"
 
       - name: Build final ISO
         run: |
