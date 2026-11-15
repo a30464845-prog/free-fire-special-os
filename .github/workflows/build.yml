@@ -104,8 +104,8 @@ jobs:
 
       - name: Build final ISO
         run: |
-         xorriso -indev /tmp/drockos.iso -update /tmp/system.img:/system.img -update /tmp/new_ramdisk.img:/ramdisk.img -outdev /tmp/FreeFire-Special-OS-v1.0.iso
-         ls -lh /tmp/FreeFire-Special-OS-v1.0.iso   
+          xorriso -indev /tmp/drockos.iso -update /tmp/system.img /system.img -update /tmp/new_ramdisk.img /ramdisk.img -outdev /tmp/FreeFire-Special-OS-v1.0.iso
+          ls -lh /tmp/FreeFire-Special-OS-v1.0.iso   
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
