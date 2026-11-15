@@ -49,16 +49,19 @@ jobs:
        
       - name: Fix GMA 4500MHD + Desktop Crash
         run: |
-          if [ -f /tmp/nr/iso/isolinux/isolinux.cfg ]; then
-            CFG="/tmp/nr/iso/isolinux/isolinux.cfg"
-          elif [ -f /tmp/nr/iso/boot/grub/grub.cfg ]; then
-            CFG="/tmp/nr/iso/boot/grub/grub.cfg"
-          else
-            echo "Searching for config..."
-            find /tmp/nr/iso -name "*.cfg" -o -name "grub*"
-            exit 1
+          CFG=$(find /tmp/nr/iso -name "isolinux.cfg" -o -name "grub.cfg" -o -name "menu.lst" 2>/dev/null | head -1)
+          if [ -z "$CFG" ]; then
+          echo "ERROR: No boot config found! Files are:"
+          find /tmp/nr/iso -type f 2>/dev/null | head -50
+          exit 1
           fi
-
+          echo "Found: $CFG"
+          cat "$CFG"
+          sed -i 's/quiet/nomodeset xforcevesa quiet/g' "$CFG"
+          sed -i 's/MENU LABEL.*/MENU LABEL Free Fire Special OS - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
+          sed -i 's/MENU TITLE.*/MENU TITLE Free Fire Special OS v1.0 - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
+          echo "=== Modified ==="
+          cat "$CFG"   
           echo "=== Original config ==="
           cat "$CFG"
 
