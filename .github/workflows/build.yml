@@ -35,6 +35,18 @@ jobs:
           7z x /tmp/drockos.7z -o/tmp/nr/iso -y
           echo "=== Extracted files ==="
           ls -la /tmp/nr/iso/
+      - name: Find and extract ISO
+        run: |
+          ISO_FILE=$(find /tmp/nr/iso -name "*.iso" | head -1)
+          if [ -z "$ISO_FILE" ]; then
+            echo "ERROR: No ISO found!"
+            exit 1
+          fi
+          echo "Found: $ISO_FILE"
+          mkdir -p /tmp/nr/iso_extracted
+          bsdtar -xf "$ISO_FILE" -C /tmp/nr/iso_extracted
+          echo "=== ISO contents ==="
+          ls -la /tmp/nr/iso_extracted/   
 
       - name: Debug - What is in iso folder
         run: |
