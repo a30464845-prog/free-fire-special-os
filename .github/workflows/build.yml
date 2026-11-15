@@ -36,15 +36,17 @@ jobs:
           echo "=== Extracted files ==="
           ls -la /tmp/nr/iso/
 
-      - name: Debug - Find files
+      - name: Debug - What is in iso folder
         run: |
-          echo "=== All files ==="
-          find /tmp/nr/iso -type f | head -50
-          echo "=== Config files ==="
-          find /tmp/nr/iso -name "*.cfg"
-          echo "=== Boot related ==="
-          find /tmp/nr/iso -name "isolinux*" -o -name "grub*" -o -name "boot*"   
+          echo "=== Files in /tmp/nr/iso ==="
+          find /tmp/nr/iso -type f 2>/dev/null | head -30
+          echo "=== All files recursively ==="
+          find /tmp/nr/iso -name "*.cfg" 2>/dev/null
+          find /tmp/nr/iso -name "isolinux*" 2>/dev/null
+          echo "=== Directory structure ==="
+          ls -la /tmp/nr/iso/   
 
+       
       - name: Fix GMA 4500MHD + Desktop Crash
         run: |
           if [ -f /tmp/nr/iso/isolinux/isolinux.cfg ]; then
