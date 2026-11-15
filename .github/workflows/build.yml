@@ -19,7 +19,7 @@ jobs:
         run: |
           wget --no-check-certificate \
             -O /tmp/drockos.7z \
-            "https://download1327.mediafire.com/g3kja9qoltggNO936CCS3eycHYwxPYr1XjKQAVDysjt73IJ0GX2ZSY1_RvEbfby14N0AmcM3m3fhicAkQ6RN45K98vr0iSAlObmUurczI7g_IIoLrT0Z42ATOp82njkQ66ka7KHyiLnZp6pakdFW0IBadD3WGVBARghh3cq9Q7SqeA/qx2k5mpbvm39681/DROCKOS_3X_32BIT_MICHAEL_JACKSON_VERSION_X86-Without-Gearlock.7z"
+            "https://download1327.mediafire.com/gvn0nfhogrtg0r30lda3isOM2X8dTmFq7EJnefp2SqY1DyreD_WTud-dKYHHl3dnZVnMeLAIvgNGMyiG1923VHVEdZXh9-O8lAJxl_4PY_L32GSTu3Aui-WDKfvxUB69JspLRvN9Ir4AN0W62c2IUsVPCTWy5ydkRVjaPH8yAIXvCA/qx2k5mpbvm39681/DROCKOS_3X_32BIT_MICHAEL_JACKSON_VERSION_X86-Without-Gearlock.7z"
           ls -lh /tmp/drockos.7z
 
       - name: Download Free Fire APK
