@@ -14,8 +14,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y genisoimage squashfs-tools bsdtar dosfstools p7zip-full
-
+          sudo apt install -y genisoimage squashfs-tools libarchive-tools dosfstools p7zip-full   
       - name: Download Drock OS 3X 32-bit (MJ Edition)
         run: |
           wget --no-check-certificate \
