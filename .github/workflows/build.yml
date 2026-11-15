@@ -1,103 +1,118 @@
-      - name: Extract GRUB config from ramdisk
+name: Build Free Fire Special OS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y p7zip-full xorriso cpio libarchive-tools dosfstools
+
+      - name: Download Drock OS 7z
+        run: |
+          wget -O /tmp/drockos.7z \
+            "https://github.com/TUMHARA_USERNAME/free-fire-special-os/releases/download/v1.0/DROCKOS_3X_32BIT_MICHAEL_JACKSON_VERSION_X86-TSO.7z"
+          ls -lh /tmp/drockos.7z
+
+      - name: Download Free Fire APK
+        run: |
+          wget --no-check-certificate \
+            -O /tmp/FreeFire.apk \
+            "https://dw.uptodown.net/dwn/xtoMUM0ogiaxrAACNri5u-E6qB9D8zvHvApV5LtbHZHf9LMr-DfrLqSwBC6Ls8TclLVUXuMC4VHvChIoCmiXdlcZ4zLDphI1nA4oHzPNR5GXpeA21iLYt8gRc-GZ6n0H/zmKFOZYoWJ5VeR0oLtrmJb7NCCtSc2qVIYhAhu3I4UqtEZSr1xFLa14R6zQl0gtTVm65Ev4dOHTPM8IFTw0bs8Xxzv-hF5PQBVKn0qbgaNJKMGhF4kZZOz0ZRZNErMwt/iQgIzlbUohnA7SLIvcuzmRcmz4lpJHUHXqhz4nB-C5j8wCd9_pXwJ9VpRv-nQdycdEhxPAXIqL7L2plm6877BTthzWq7NHzGqOCO_6jW2hlq24htEMOWCGIC3A6rAc59/c0QuTPtAaqM8MjTTZS3VJjWmMLe3m2u_H3A1s_MSHNg=/free-fire-1-132-1.apk"
+          ls -lh /tmp/FreeFire.apk
+
+      - name: Extract 7z and find ISO
+        run: |
+          mkdir -p /tmp/nr/extracted
+          7z x /tmp/drockos.7z -o/tmp/nr/extracted -y
+          ISO_FILE=$(find /tmp/nr/extracted -name "*.iso" | head -1)
+          if [ -z "$ISO_FILE" ]; then
+            echo "ERROR: No ISO found!"
+            find /tmp/nr/extracted -type f | head -30
+            exit 1
+          fi
+          cp "$ISO_FILE" /tmp/drockos.iso
+          echo "ISO found: $ISO_FILE"
+          ls -lh /tmp/drockos.iso
+
+      - name: Extract ramdisk.img from ISO
+        run: |
+          xorriso -osirrox on -indev /tmp/drockos.iso -extract /ramdisk.img /tmp/ramdisk.img
+          ls -lh /tmp/ramdisk.img
+
+      - name: Fix boot config
         run: |
           mkdir -p /tmp/nr/ramdisk
           cd /tmp/nr/ramdisk
-          zcat /tmp/nr/iso_extracted/ramdisk.img | cpio -idm 2>/dev/null || \
-          cpio -idm < /tmp/nr/iso_extracted/ramdisk.img 2>/dev/null
-          echo "=== Ramdisk contents ==="
-          find /tmp/nr/ramdisk -type f | head -30
-
-      - name: Fix GMA 4500MHD + Desktop Crash
-        run: |
-          CFG=$(find /tmp/nr/ramdisk -name "grub.cfg" -o -name "menu.lst" -o -name "*.cfg" 2>/dev/null | head -1)
-          if [ -z "$CFG" ]; then
-          echo "No .cfg found, checking all files:"
+          zcat /tmp/ramdisk.img | cpio -idm 2>/dev/null || cpio -idm < /tmp/ramdisk.img 2>/dev/null
+          echo "=== Ramdisk files ==="
           find /tmp/nr/ramdisk -type f
-          exit 1
-          fi
-          echo "Found: $CFG"
-          echo "=== Original ==="
-          cat "$CFG"
-
-          # Kernel params add karo (GRUB format mein "linux" line hoti hai)
-          sed -i 's/quiet/nomodeset xforcevesa quiet/g' "$CFG"
-          sed -i 's/MENU LABEL.*/MENU LABEL Free Fire Special OS - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
-          sed -i 's/MENU TITLE.*/MENU TITLE Free Fire Special OS v1.0 - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
-
-          echo "=== Modified ==="
-          cat "$CFG"
-
-          - name: Repack ramdisk.img
-           run: |
-           cd /tmp/nr/ramdisk
-           find . | cpio -H newc -o | gzip > /tmp/nr/iso_extracted/ramdisk.img
-           echo "ramdisk.img repacked"
-
-           - name: Extract system.img
-             run: |
-             sudo losetup -f /tmp/nr/iso_extracted/system.img
-             LOOP=$(losetup -j /tmp/nr/iso_extracted/system.img | awk -F: '{print $1}')
-             sudo mount -o loop "$LOOP" /mnt
-             mkdir -p /tmp/nr/system-root
-             cp -a /mnt/* /tmp/nr/system-root/
-             sudo umount /mnt
-             sudo losetup -d "$LOOP"
-             echo "=== System contents ==="
-             ls -la /tmp/nr/system-root/
-
-             - name: Fix desktop crash (build.prop)
-               run: |
-               BUILD_PROP="/tmp/nr/system-root/build.prop"
-               if [ ! -f "$BUILD_PROP" ]; then
-               BUILD_PROP=$(find /tmp/nr/system-root -name "build.prop" | head -1)
-             fi
-             if [ -n "$BUILD_PROP" ] && [ -f "$BUILD_PROP" ]; then
-             echo "ro.hwui.renderer=skia" >> "$BUILD_PROP"
-             echo "ro.kernel.android.checkjni=0" >> "$BUILD_PROP"
-             echo "build.prop updated: $BUILD_PROP"
+          CFG=$(find /tmp/nr/ramdisk -name "*.cfg" -o -name "menu.lst" | head -1)
+          if [ -n "$CFG" ]; then
+            echo "=== Original: $CFG ==="
+            cat "$CFG"
+            sed -i 's/quiet/nomodeset xforcevesa quiet/g' "$CFG"
+            sed -i 's/MENU LABEL.*/MENU LABEL Free Fire Special OS - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
+            sed -i 's/MENU TITLE.*/MENU TITLE Free Fire Special OS v1.0 - Made by ABDUL REHMAN FAROOQI/g' "$CFG"
+            echo "=== Modified ==="
+            cat "$CFG"
           else
-             echo "ERROR: build.prop not found!"
-             find /tmp/nr/system-root -name "build.prop"
-           fi
+            echo "WARNING: No config file found in ramdisk"
+          fi
 
-            - name: Install Free Fire APK
-              run: |
-              APP_DIR="/tmp/nr/system-root/app"
-              if [ ! -d "$APP_DIR" ]; then
-              APP_DIR=$(find /tmp/nr/system-root -type d -name "app" | head -1)
-            fi
-            mkdir -p "$APP_DIR"
-            cp /tmp/FreeFire.apk "$APP_DIR/"
-            chmod 644 "$APP_DIR/FreeFire.apk"
-            echo "Free Fire installed in: $APP_DIR"
+      - name: Repack ramdisk.img
+        run: |
+          cd /tmp/nr/ramdisk
+          find . | cpio -H newc -o 2>/dev/null | gzip > /tmp/new_ramdisk.img
+          ls -lh /tmp/new_ramdisk.img
 
-            - name: Repack system.img
-              run: |
-              # Original size preserve karo
-              ORIG_SIZE=$(stat -c%s /tmp/nr/iso_extracted/system.img)
-              sudo mkfs.ext4 /tmp/nr/iso_extracted/system.img
-              sudo losetup -f /tmp/nr/iso_extracted/system.img
-              LOOP=$(losetup -j /tmp/nr/iso_extracted/system.img | awk -F: '{print $1}')
-              sudo mount -o loop "$LOOP" /mnt
-              cp -a /tmp/nr/system-root/* /mnt/
-              sudo umount /mnt
-              sudo losetup -d "$LOOP"
-              echo "system.img repacked"
+      - name: Extract and modify system.img
+        run: |
+          xorriso -osirrox on -indev /tmp/drockos.iso -extract /system.img /tmp/system.img
+          ls -lh /tmp/system.img
+          sudo losetup -f /tmp/system.img
+          LOOP=$(losetup -j /tmp/system.img | awk -F: '{print $1}')
+          sudo mount -o loop "$LOOP" /mnt
+          echo "=== System root ==="
+          ls /mnt/
+          BUILD_PROP=$(find /mnt -name "build.prop" | head -1)
+          if [ -n "$BUILD_PROP" ]; then
+            echo "ro.hwui.renderer=skia" >> "$BUILD_PROP"
+            echo "ro.kernel.android.checkjni=0" >> "$BUILD_PROP"
+            echo "build.prop updated: $BUILD_PROP"
+          else
+            echo "WARNING: build.prop not found"
+          fi
+          APP_DIR=$(find /mnt -type d -name "app" | head -1)
+          if [ -z "$APP_DIR" ]; then
+            APP_DIR="/mnt/system/app"
+          fi
+          mkdir -p "$APP_DIR"
+          cp /tmp/FreeFire.apk "$APP_DIR/"
+          chmod 644 "$APP_DIR/FreeFire.apk"
+          echo "Free Fire installed in: $APP_DIR"
+          sudo umount /mnt
+          sudo losetup -d "$LOOP"
+          echo "system.img done"
 
-            - name: Build final ISO
-              run: |
-              cd /tmp/nr/iso_extracted
-              genisoimage -o "/tmp/FreeFire-Special-OS-v1.0.iso" \
-              -b ramdisk.img \
-              -no-emul-boot \
-              -boot-load-size 8 \
-              -V "FreeFire Special OS" \
-              -J -R -O "FreeFire Special OS" \
-           .
-              ls -lh /tmp/FreeFire-Special-OS-v1.0.iso
+      - name: Build final ISO
+        run: |
+          xorriso -indev /tmp/drockos.iso \
+            -update /ramdisk.img=/tmp/new_ramdisk.img \
+            -update /system.img=/tmp/system.img \
+            -outdev /tmp/FreeFire-Special-OS-v1.0.iso
+          ls -lh /tmp/FreeFire-Special-OS-v1.0.iso
 
-           - name: Upload artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: FreeFire-Special-OS-v1.0
-    path: /tmp/FreeFire-Special-OS-v1.0.iso   
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeFire-Special-OS-v1.0
+          path: /tmp/FreeFire-Special-OS-v1.0.iso   
